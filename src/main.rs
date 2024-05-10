@@ -13,5 +13,6 @@ use financial_manage::b3::parse_file;
 use calamine::{Reader, open_workbook, Xlsx, Data};
 
 pub fn main() {
-    parse_file("test.xlsx").unwrap();
+    let parsed = parse_file("test.xlsx").unwrap();
+    println!("{:?}", parsed);
 }
