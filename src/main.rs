@@ -9,26 +9,38 @@
 // fn rocket() -> _ {
 //     rocket::build().mount("/", routes![index])
 // }
-use financial_manage::crypto::get_bitcoin_balance;
+use financial_manage::crypto::{Bitcoin, Ethereum};
 use financial_manage::b3::parse_file;
-use calamine::{Reader, open_workbook, Xlsx, Data};
+use std::env;
+use dotenv::dotenv;
 
-// pub fn main() {
-//     // let parsed = parse_file("test.xlsx").unwrap();
-//     // println!("{:?}", parsed);
-//     let client = init_rpc_client();
-//     println!("{:?}", client);
-//     let a = client.get_block_count().unwrap();
-//     println!("{:?}", a);
-// }
 
 #[tokio::main]
 async fn main() {
+    dotenv().ok();
+
+    let parsed = parse_file("test.xlsx").unwrap();
+    println!("{:?}", parsed);
+
     let address = "bc1qup32v2aazd6k7xx5d5dwxtuu8axeam68rwnazj"; // Replace with the desired Bitcoin address
-    match get_bitcoin_balance(address).await {
+    let mut btc = Bitcoin::new(address.to_string());
+    match btc.get_bitcoin_balance().await {
         Ok(balance) => {
             // let balance_btc = balance as f64 / 1e8; // Convert satoshis to BTC
             println!("Balance of {}: {} BTC", address, balance);
+        }
+        Err(e) => {
+            eprintln!("Error: {}", e);
+        }
+    }
+
+    let api_key = env::var("ETHERSCAN_API_KEY").expect("Etherscan API KEY should be set.");
+    let eth_addr = "0x702879Dc9CE3a526d51f21a8788EFb1B708911d1";
+
+    let mut eth = Ethereum::new(eth_addr.to_string());
+    match eth.get_ethereum_balance(&api_key).await {
+        Ok(balance) => {
+            println!("Balance of {}: {} ETH", eth_addr, balance);
         }
         Err(e) => {
             eprintln!("Error: {}", e);
