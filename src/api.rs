@@ -68,9 +68,16 @@ pub async fn ethereum_balance(key: ApiKey<'_>, address: &str) -> Result<Json<Str
 
 #[post("/b3/parse", data = "<file>")]
 pub async fn upload(mut file: TempFile<'_>) -> Result<Json<String>, std::io::Error> {
-    file.copy_to(&"./tmp.xlsx").await?;
+    let tmp_path = "./tmp.xlsx";
+    file.copy_to(&tmp_path).await?;
     let parsed_file = crate::b3::parse_file("./file.xlsx").expect("File should be parsed correctly.");
     let json_string = serde_json::to_string(&parsed_file).expect("Parsed file should be a valid json string.");
+
+    match std::fs::remove_file(tmp_path) {
+        Ok(_) => println!("File deleted successfully"),
+        Err(e) => eprintln!("Failed to delete file: {}", e),
+    }
+
     Ok(Json(json_string))
 }
 
