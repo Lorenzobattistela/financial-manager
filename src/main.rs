@@ -1,49 +1,87 @@
-// #[macro_use] extern crate rocket;
+#![allow(dead_code)]
+#![allow(unused_variables)]
 
-// #[get("/")]
-// fn index() -> &'static str {
-//     "Hello, world!"
-// }
 
-// #[launch]
-// fn rocket() -> _ {
-//     rocket::build().mount("/", routes![index])
-// }
 use financial_manage::crypto::{Bitcoin, Ethereum};
-use financial_manage::b3::parse_file;
-use std::env;
 use dotenv::dotenv;
+#[macro_use] extern crate rocket;
 
+use rocket::http::Status;
+use rocket::request::{Outcome, Request, FromRequest};
+use rocket::{get, launch, routes, Rocket, Build};
 
-#[tokio::main]
-async fn main() {
-    dotenv().ok();
+struct ApiKey<'r>(&'r str);
 
-    let parsed = parse_file("test.xlsx").unwrap();
-    println!("{:?}", parsed);
+#[derive(Debug)]
+enum ApiKeyError {
+    Missing,
+    Invalid,
+}
 
-    let address = "bc1qup32v2aazd6k7xx5d5dwxtuu8axeam68rwnazj"; // Replace with the desired Bitcoin address
-    let mut btc = Bitcoin::new(address.to_string());
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for ApiKey<'r> {
+    type Error = ApiKeyError;
+    async fn from_request(req: &'r Request<'_>) -> Outcome<Self, Self::Error> {
+        fn is_valid(key: &str) -> bool {
+            key == "valid_api_key"
+        }
+
+        match req.headers().get_one("x-api-key") {
+            None => Outcome::Error((Status::BadRequest, ApiKeyError::Missing)),
+            Some(key) if is_valid(key) => Outcome::Success(ApiKey(key)),
+            Some(_) => Outcome::Error((Status::BadRequest, ApiKeyError::Invalid)),
+        }
+    }
+}
+
+#[derive(Responder)]
+#[response(status = 200, content_type = "json")]
+struct Json(String);
+
+#[get("/bitcoin/balance/<address>")]
+async fn bitcoin_balance(key: ApiKey<'_>, address: &str) -> Result<Json, Status> {
+    let mut btc = Bitcoin::new(String::from(address));
+
     match btc.get_bitcoin_balance().await {
         Ok(balance) => {
-            // let balance_btc = balance as f64 / 1e8; // Convert satoshis to BTC
-            println!("Balance of {}: {} BTC", address, balance);
+            let json_res = format!("{{ \"balance\": {} }}", balance);
+            Ok(Json(json_res))
         }
         Err(e) => {
-            eprintln!("Error: {}", e);
+            Err(Status::BadRequest)
         }
     }
+}
 
-    let api_key = env::var("ETHERSCAN_API_KEY").expect("Etherscan API KEY should be set.");
-    let eth_addr = "0x702879Dc9CE3a526d51f21a8788EFb1B708911d1";
+#[get("/ethereum/balance/<address>")]
+async fn ethereum_balance(key: ApiKey<'_>, address: &str) -> Result<Json, Status> {
+    let mut eth = Ethereum::new(String::from(address));
 
-    let mut eth = Ethereum::new(eth_addr.to_string());
-    match eth.get_ethereum_balance(&api_key).await {
+    match eth.get_ethereum_balance().await {
         Ok(balance) => {
-            println!("Balance of {}: {} ETH", eth_addr, balance);
+            let json_res = format!("{{ \"balance\": {} }}", balance);
+            Ok(Json(json_res))
         }
         Err(e) => {
-            eprintln!("Error: {}", e);
+            Err(Status::BadRequest)
         }
     }
+}
+
+
+
+#[get("/")]
+fn index() -> &'static str {
+    "Hello, world!"
+}
+
+#[launch]
+pub fn rocket() -> Rocket<Build> {
+    dotenv().ok();
+
+    rocket::build()
+        .mount("/", routes![index])
+        .mount("/", routes![sensitive])
+        .mount("/", routes![bitcoin_balance])
+        .mount("/", routes![ethereum_balance])
 }
