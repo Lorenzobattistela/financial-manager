@@ -6,7 +6,7 @@ use crate::crypto::{Bitcoin, Ethereum};
 use rocket::fs::TempFile;
 use rocket::http::Status;
 use rocket::request::{Outcome, Request, FromRequest};
-use rocket::{get, post};
+use rocket::{get, post, Responder};
 use rocket::serde::json::Json;
 use std::env;
 
@@ -38,7 +38,11 @@ impl<'r> FromRequest<'r> for ApiKey<'r> {
 
 
 #[get("/bitcoin/balance/<address>")]
-pub async fn bitcoin_balance(key: ApiKey<'_>, address: &str) -> Result<Json<String>, Status> {
+pub async fn bitcoin_balance(key: ApiKey<'_>, address: &str) -> Result<Json<String>, (Status, String)> {
+    if address.is_empty() {
+        return Err((Status::BadRequest, String::from("BTC address is empty")));
+    }
+
     let mut btc = Bitcoin::new(String::from(address));
 
     match btc.get_bitcoin_balance().await {
@@ -47,13 +51,16 @@ pub async fn bitcoin_balance(key: ApiKey<'_>, address: &str) -> Result<Json<Stri
             Ok(Json(json_res))
         }
         Err(e) => {
-            Err(Status::BadRequest)
+            Err((Status::BadRequest, String::from("Unable to get BTC balance from adress.")))
         }
     }
 }
 
 #[get("/ethereum/balance/<address>")]
-pub async fn ethereum_balance(key: ApiKey<'_>, address: &str) -> Result<Json<String>, Status> {
+pub async fn ethereum_balance(key: ApiKey<'_>, address: &str) -> Result<Json<String>, (Status, String)> {
+    if address.is_empty() {
+        return Err((Status::BadRequest, String::from("ETH address is empty")));
+    }
     let mut eth = Ethereum::new(String::from(address));
 
     match eth.get_ethereum_balance().await {
@@ -62,7 +69,7 @@ pub async fn ethereum_balance(key: ApiKey<'_>, address: &str) -> Result<Json<Str
             Ok(Json(json_res))
         }
         Err(e) => {
-            Err(Status::BadRequest)
+            Err((Status::BadRequest, String::from("Unable to get ETH balance from address")))
         }
     }
 }
