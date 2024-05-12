@@ -6,7 +6,7 @@ use crate::crypto::{Bitcoin, Ethereum};
 use rocket::fs::TempFile;
 use rocket::http::Status;
 use rocket::request::{Outcome, Request, FromRequest};
-use rocket::{get, post, Responder};
+use rocket::{get, post};
 use rocket::serde::json::Json;
 use std::env;
 
@@ -28,7 +28,7 @@ impl<'r> FromRequest<'r> for ApiKey<'r> {
             key == &api_key
         }
 
-        match req.headers().get_one("x-api-key") {
+        match req.headers().get_one("x_api_key") {
             None => Outcome::Error((Status::BadRequest, ApiKeyError::Missing)),
             Some(key) if is_valid(key) => Outcome::Success(ApiKey(key)),
             Some(_) => Outcome::Error((Status::BadRequest, ApiKeyError::Invalid)),
