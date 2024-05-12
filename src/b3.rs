@@ -1,4 +1,5 @@
 use calamine::{open_workbook, Data, DataType, Reader, Xlsx, XlsxError};
+use serde::Serialize;
 
 #[derive(Debug)]
 pub enum InvestmentType {
@@ -7,7 +8,7 @@ pub enum InvestmentType {
     TreasuryDirect(TreasuryDirect),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct Stock {
     product: String,
     institution: String,
@@ -25,7 +26,7 @@ pub struct Stock {
     updated_value: f64,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct Fii {
     product: String,
     institution: String,
@@ -43,7 +44,7 @@ pub struct Fii {
     updated_value: f64,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct TreasuryDirect {
     product: String,
     institution: String,
@@ -60,7 +61,7 @@ pub struct TreasuryDirect {
     updated_value: f64,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct ParsedFile {
     stocks: Vec<Stock>,
     total_value_stocks: f64,
