@@ -8,6 +8,7 @@ use rocket::http::Status;
 use rocket::request::{Outcome, Request, FromRequest};
 use rocket::{get, post};
 use rocket::serde::json::Json;
+use std::env;
 
 
 pub struct ApiKey<'r>(&'r str);
@@ -23,7 +24,8 @@ impl<'r> FromRequest<'r> for ApiKey<'r> {
     type Error = ApiKeyError;
     async fn from_request(req: &'r Request<'_>) -> Outcome<Self, Self::Error> {
         fn is_valid(key: &str) -> bool {
-            key == "valid_api_key"
+            let api_key = env::var("API_KEY").expect("Our API_KEY should be set.");
+            key == &api_key
         }
 
         match req.headers().get_one("x-api-key") {
@@ -67,7 +69,7 @@ pub async fn ethereum_balance(key: ApiKey<'_>, address: &str) -> Result<Json<Str
 
 
 #[post("/b3/parse", data = "<file>")]
-pub async fn upload(mut file: TempFile<'_>) -> Result<Json<String>, std::io::Error> {
+pub async fn upload(key: ApiKey<'_>, mut file: TempFile<'_>) -> Result<Json<String>, std::io::Error> {
     let tmp_path = "./tmp.xlsx";
     file.copy_to(&tmp_path).await?;
     let parsed_file = crate::b3::parse_file("./file.xlsx").expect("File should be parsed correctly.");
