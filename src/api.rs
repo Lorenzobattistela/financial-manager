@@ -79,7 +79,7 @@ pub async fn ethereum_balance(key: ApiKey<'_>, address: &str) -> Result<Json<Str
 pub async fn upload(key: ApiKey<'_>, mut file: TempFile<'_>) -> Result<Json<String>, std::io::Error> {
     let tmp_path = "./tmp.xlsx";
     file.copy_to(&tmp_path).await?;
-    let parsed_file = crate::b3::parse_file("./file.xlsx").expect("File should be parsed correctly.");
+    let parsed_file = crate::b3::parse_file(&tmp_path).expect("File should be parsed correctly.");
     let json_string = serde_json::to_string(&parsed_file).expect("Parsed file should be a valid json string.");
 
     match std::fs::remove_file(tmp_path) {
