@@ -1,15 +1,13 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
-
 use crate::crypto::{Bitcoin, Ethereum};
 use rocket::fs::TempFile;
 use rocket::http::Status;
-use rocket::request::{Outcome, Request, FromRequest};
-use rocket::{get, post};
+use rocket::request::{FromRequest, Outcome, Request};
 use rocket::serde::json::Json;
+use rocket::{get, post};
 use std::env;
-
 
 pub struct ApiKey<'r>(&'r str);
 
@@ -36,9 +34,27 @@ impl<'r> FromRequest<'r> for ApiKey<'r> {
     }
 }
 
+#[get("/bitcoin/brl-price")]
+pub async fn get_btc_brl_price() -> Result<Json<String>, (Status, String)> {
+    let mut btc = Bitcoin::new(String::from("a"));
+
+    match btc.get_price_brl().await {
+        Ok(balance) => {
+            let json_res = format!("{{ \"price\": {} }}", balance);
+            Ok(Json(json_res))
+        }
+        Err(e) => Err((
+            Status::InternalServerError,
+            String::from("Could not get btc price."),
+        )),
+    }
+}
 
 #[get("/bitcoin/balance/<address>")]
-pub async fn bitcoin_balance(key: ApiKey<'_>, address: &str) -> Result<Json<String>, (Status, String)> {
+pub async fn bitcoin_balance(
+    key: ApiKey<'_>,
+    address: &str,
+) -> Result<Json<String>, (Status, String)> {
     if address.is_empty() {
         return Err((Status::BadRequest, String::from("BTC address is empty")));
     }
@@ -50,14 +66,34 @@ pub async fn bitcoin_balance(key: ApiKey<'_>, address: &str) -> Result<Json<Stri
             let json_res = format!("{{ \"balance\": {} }}", balance);
             Ok(Json(json_res))
         }
-        Err(e) => {
-            Err((Status::BadRequest, String::from("Unable to get BTC balance from adress.")))
+        Err(e) => Err((
+            Status::BadRequest,
+            String::from("Unable to get BTC balance from adress."),
+        )),
+    }
+}
+
+#[get("/ethereum/brl-price")]
+pub async fn get_eth_brl_price() -> Result<Json<String>, (Status, String)> {
+    let mut eth = Ethereum::new(String::from("a"));
+
+    match eth.get_price_brl().await {
+        Ok(balance) => {
+            let json_res = format!("{{ \"price\": {} }}", balance);
+            Ok(Json(json_res))
         }
+        Err(e) => Err((
+            Status::InternalServerError,
+            String::from("Could not get eth price."),
+        )),
     }
 }
 
 #[get("/ethereum/balance/<address>")]
-pub async fn ethereum_balance(key: ApiKey<'_>, address: &str) -> Result<Json<String>, (Status, String)> {
+pub async fn ethereum_balance(
+    key: ApiKey<'_>,
+    address: &str,
+) -> Result<Json<String>, (Status, String)> {
     if address.is_empty() {
         return Err((Status::BadRequest, String::from("ETH address is empty")));
     }
@@ -68,19 +104,23 @@ pub async fn ethereum_balance(key: ApiKey<'_>, address: &str) -> Result<Json<Str
             let json_res = format!("{{ \"balance\": {} }}", balance);
             Ok(Json(json_res))
         }
-        Err(e) => {
-            Err((Status::BadRequest, String::from("Unable to get ETH balance from address")))
-        }
+        Err(e) => Err((
+            Status::BadRequest,
+            String::from("Unable to get ETH balance from address"),
+        )),
     }
 }
 
-
 #[post("/b3/parse", data = "<file>")]
-pub async fn upload(key: ApiKey<'_>, mut file: TempFile<'_>) -> Result<Json<String>, std::io::Error> {
+pub async fn upload(
+    key: ApiKey<'_>,
+    mut file: TempFile<'_>,
+) -> Result<Json<String>, std::io::Error> {
     let tmp_path = "./tmp.xlsx";
     file.copy_to(&tmp_path).await?;
     let parsed_file = crate::b3::parse_file(&tmp_path).expect("File should be parsed correctly.");
-    let json_string = serde_json::to_string(&parsed_file).expect("Parsed file should be a valid json string.");
+    let json_string =
+        serde_json::to_string(&parsed_file).expect("Parsed file should be a valid json string.");
 
     match std::fs::remove_file(tmp_path) {
         Ok(_) => println!("File deleted successfully"),
@@ -89,4 +129,3 @@ pub async fn upload(key: ApiKey<'_>, mut file: TempFile<'_>) -> Result<Json<Stri
 
     Ok(Json(json_string))
 }
-
